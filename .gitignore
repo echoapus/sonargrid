@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+run-spider.sh
+run-sonargrid.sh
+spider.db
+spider.db-*
+sonargrid.db
+sonargrid.db-*
+sonargrid.key
