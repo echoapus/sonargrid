@@ -4,7 +4,7 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PREFIX="${SONARGRID_PREFIX:-/opt/sonargrid}"
 VENV_DIR="$PREFIX/.venv"
-HOST="${SONARGRID_HOST:-127.0.0.1}"
+HOST="${SONARGRID_HOST:-0.0.0.0}"
 PORT="${SONARGRID_PORT:-5000}"
 SERVICE="${SONARGRID_SERVICE:-1}"
 SERVICE_FILE="/etc/systemd/system/sonargrid.service"

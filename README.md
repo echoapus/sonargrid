@@ -49,7 +49,7 @@ sonargrid.service
 Open:
 
 ```text
-http://127.0.0.1:5000/
+http://<server-ip>:5000/
 ```
 
 ## Service Commands
