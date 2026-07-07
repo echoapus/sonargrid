@@ -19,99 +19,363 @@ app = Flask(__name__)
 
 INDEX = """
 <!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SonarGrid NMS</title>
-<h1>SonarGrid NMS</h1>
-<h2>Dashboard</h2>
-<ul>
-  <li>Total devices: {{ summary.devices }}</li>
-  <li>Inactive devices: {{ summary.inactive }}</li>
-  <li>Observations: {{ summary.observations }}</li>
-  <li>Successful job runs: {{ summary.success_runs }}</li>
-  <li>Failed job runs: {{ summary.failed_runs }}</li>
-  <li>Topology: {{ summary.topology_nodes }} nodes / {{ summary.topology_edges }} edges</li>
-  <li>Topology freeze: {{ "on" if frozen else "off" }}</li>
-</ul>
-<p>
-  <a href="{{ url_for('export_devices') }}">Export devices CSV</a>
-  <a href="{{ url_for('export_observations') }}">Export observations CSV</a>
-</p>
-<h2>Settings</h2>
-<form method="post" action="{{ url_for('save_snmp_settings') }}">
-  <label>SNMP v2c community
-    <input name="community" type="password" placeholder="{{ 'configured' if snmp_configured else 'not configured' }}">
-  </label>
-  <button>Save SNMP community</button>
-</form>
-<p>SNMP community configured: {{ "yes" if snmp_configured else "no" }}</p>
-<form method="post" action="{{ url_for('add_job') }}">
-  <label>Name <input name="name" value="Local discovery"></label>
-  <label>CIDR <input name="target" value="127.0.0.0/30"></label>
-  <label>Interval seconds <input name="interval_seconds" value="3600" type="number"></label>
-  <button>Add discovery job</button>
-</form>
-<form method="post" action="{{ url_for('add_collect_job') }}">
-  <label>Name <input name="name" value="Collect all devices"></label>
-  <label>Target <input name="target" value="all"></label>
-  <label>Interval seconds <input name="interval_seconds" value="300" type="number"></label>
-  <button>Add collection job</button>
-</form>
-<form method="post" action="{{ url_for('add_topology_job') }}">
-  <label>Name <input name="name" value="Rebuild topology"></label>
-  <label>Interval seconds <input name="interval_seconds" value="300" type="number"></label>
-  <button>Add topology job</button>
-</form>
-<form method="post" action="{{ url_for('rebuild_topology_now') }}">
-  <button>Rebuild topology now</button>
-</form>
-<form method="post" action="{{ url_for('toggle_topology_freeze') }}">
-  <input type="hidden" name="freeze" value="{{ '0' if frozen else '1' }}">
-  <button>{{ "Resume topology updates" if frozen else "Pause topology updates" }}</button>
-</form>
-<h2>Devices</h2>
-<table border="1" cellpadding="4">
-<tr><th>IP</th><th>Hostname</th><th>Type</th><th>Confidence</th><th>Source</th><th>Last seen</th><th>Inactive</th></tr>
-{% for d in devices %}
-<tr>
-  <td>{{ d.ip }}</td><td>{{ d.hostname or "" }}</td><td>{{ d.device_type }}</td>
-  <td>{{ d.detection_confidence }}</td><td>{{ d.detection_source }}</td>
-  <td>{{ d.last_seen_at or "" }}</td><td>{{ d.inactive_at or "" }}</td>
-</tr>
-{% endfor %}
-</table>
-<h2>Topology</h2>
-<table border="1" cellpadding="4">
-<tr><th>Node</th><th>Type</th><th>Status</th><th>Confidence</th><th>Updated</th></tr>
-{% for n in topology_nodes %}
-<tr><td>{{ n.label }}</td><td>{{ n.node_type }}</td><td>{{ n.status }}</td><td>{{ n.confidence }}</td><td>{{ n.updated_at }}</td></tr>
-{% endfor %}
-</table>
-<table border="1" cellpadding="4">
-<tr><th>Source</th><th>Target</th><th>Relation</th><th>Confidence</th><th>Notes</th></tr>
-{% for e in topology_edges %}
-<tr><td>{{ e.source_label }}</td><td>{{ e.target_label }}</td><td>{{ e.relation }}</td><td>{{ e.confidence }}</td><td>{{ e.notes }}</td></tr>
-{% endfor %}
-</table>
-<h2>Jobs</h2>
-<table border="1" cellpadding="4">
-<tr><th>Name</th><th>Type</th><th>Target</th><th>Next run</th><th>Last success</th><th>Failures</th><th>Last error</th></tr>
-{% for j in jobs %}
-<tr><td>{{ j.name }}</td><td>{{ j.job_type }}</td><td>{{ j.target }}</td><td>{{ j.next_run_at or "" }}</td><td>{{ j.last_success_at or "" }}</td><td>{{ j.consecutive_failures }}</td><td>{{ j.last_error }}</td></tr>
-{% endfor %}
-</table>
-<h2>Recent job runs</h2>
-<table border="1" cellpadding="4">
-<tr><th>Type</th><th>Target</th><th>Status</th><th>Started</th><th>Error</th><th>Result</th></tr>
-{% for r in runs %}
-<tr><td>{{ r.job_type }}</td><td>{{ r.target }}</td><td>{{ r.status }}</td><td>{{ r.started_at }}</td><td>{{ r.error }}</td><td>{{ r.result_json }}</td></tr>
-{% endfor %}
-</table>
-<h2>Notifications</h2>
-<table border="1" cellpadding="4">
-<tr><th>Channel</th><th>Status</th><th>Sent</th><th>Message</th><th>Error</th></tr>
-{% for n in notifications %}
-<tr><td>{{ n.channel }}</td><td>{{ n.status }}</td><td>{{ n.sent_at }}</td><td>{{ n.message }}</td><td>{{ n.error }}</td></tr>
-{% endfor %}
-</table>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --panel-soft: #f9fafb;
+    --line: #d9dee6;
+    --line-soft: #e8edf3;
+    --text: #182230;
+    --muted: #667085;
+    --accent: #0b7285;
+    --accent-strong: #075c6b;
+    --ok: #0f8a5f;
+    --warn: #b7791f;
+    --bad: #b42318;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: 0;
+  }
+  a { color: var(--accent); text-decoration: none; font-weight: 650; }
+  a:hover { color: var(--accent-strong); text-decoration: underline; }
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .sidebar {
+    background: #101828;
+    color: #f9fafb;
+    padding: 20px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: #e6f7fb; color: #075c6b; font-weight: 900;
+  }
+  .brand-title { font-size: 18px; font-weight: 800; }
+  .brand-sub { color: #98a2b3; font-size: 12px; margin-top: 1px; }
+  .nav { display: grid; gap: 6px; }
+  .nav a {
+    color: #d0d5dd;
+    padding: 9px 10px;
+    border-radius: 6px;
+    font-weight: 650;
+  }
+  .nav a:hover { background: #1d2939; color: #fff; text-decoration: none; }
+  .main { min-width: 0; }
+  .topbar {
+    height: 64px;
+    background: rgba(255,255,255,.92);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+  }
+  h1 { font-size: 20px; line-height: 1.2; margin: 0; }
+  h2 { font-size: 15px; margin: 0; }
+  .muted { color: var(--muted); }
+  .content { padding: 24px; display: grid; gap: 20px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(132px, 1fr));
+    gap: 12px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+    min-height: 92px;
+  }
+  .stat-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+  .stat-value { font-size: 28px; line-height: 1.1; font-weight: 850; margin-top: 10px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(340px, .8fr); gap: 20px; align-items: start; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--panel-soft);
+  }
+  .panel-body { padding: 16px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .forms { display: grid; gap: 14px; }
+  form.inline { display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)) auto; gap: 10px; align-items: end; }
+  form.compact { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+  input {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid #cfd6df;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    background: #fff;
+    font: inherit;
+  }
+  button, .button {
+    min-height: 36px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #fff;
+    background: var(--accent);
+    font-weight: 750;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover, .button:hover { background: var(--accent-strong); text-decoration: none; }
+  button.secondary, .button.secondary {
+    background: #fff;
+    color: var(--accent);
+  }
+  button.warning { background: #fff; border-color: var(--warn); color: var(--warn); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    background: var(--panel-soft);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+  td {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 10px 12px;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+  .truncate { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #eef2f6;
+    color: #344054;
+  }
+  .pill.ok { background: #e8f7ef; color: var(--ok); }
+  .pill.warn { background: #fff4df; color: var(--warn); }
+  .pill.bad { background: #ffebe9; color: var(--bad); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 1120px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .grid, .split { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .nav { grid-template-columns: repeat(3, 1fr); }
+    .topbar { position: static; align-items: flex-start; height: auto; padding: 16px; flex-direction: column; }
+    .content { padding: 16px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    form.inline { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">SG</div>
+      <div>
+        <div class="brand-title">SonarGrid</div>
+        <div class="brand-sub">NMS Console</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#devices">Devices</a>
+      <a href="#topology">Topology</a>
+      <a href="#jobs">Jobs</a>
+      <a href="#settings">Settings</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>SonarGrid NMS</h1>
+        <div class="muted">Information collection and inferred topology</div>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="{{ url_for('export_devices') }}">Devices CSV</a>
+        <a class="button secondary" href="{{ url_for('export_observations') }}">Observations CSV</a>
+      </div>
+    </header>
+    <section class="content">
+      <section id="dashboard" class="stats">
+        <div class="stat"><div class="stat-label">Devices</div><div class="stat-value">{{ summary.devices }}</div></div>
+        <div class="stat"><div class="stat-label">Inactive</div><div class="stat-value">{{ summary.inactive }}</div></div>
+        <div class="stat"><div class="stat-label">Observations</div><div class="stat-value">{{ summary.observations }}</div></div>
+        <div class="stat"><div class="stat-label">Successful Jobs</div><div class="stat-value">{{ summary.success_runs }}</div></div>
+        <div class="stat"><div class="stat-label">Failed Jobs</div><div class="stat-value">{{ summary.failed_runs }}</div></div>
+        <div class="stat"><div class="stat-label">Topology</div><div class="stat-value">{{ summary.topology_nodes }}/{{ summary.topology_edges }}</div></div>
+      </section>
+
+      <section id="settings" class="grid">
+        <div class="panel">
+          <div class="panel-head"><h2>Collection Jobs</h2></div>
+          <div class="panel-body forms">
+            <form class="inline" method="post" action="{{ url_for('add_job') }}">
+              <label>Name <input name="name" value="Local discovery"></label>
+              <label>CIDR <input name="target" value="127.0.0.0/30"></label>
+              <label>Interval <input name="interval_seconds" value="3600" type="number"></label>
+              <button>Discovery</button>
+            </form>
+            <form class="inline" method="post" action="{{ url_for('add_collect_job') }}">
+              <label>Name <input name="name" value="Collect all devices"></label>
+              <label>Target <input name="target" value="all"></label>
+              <label>Interval <input name="interval_seconds" value="300" type="number"></label>
+              <button>Collect</button>
+            </form>
+            <form class="inline" method="post" action="{{ url_for('add_topology_job') }}">
+              <label>Name <input name="name" value="Rebuild topology"></label>
+              <label>Interval <input name="interval_seconds" value="300" type="number"></label>
+              <span></span>
+              <button>Topology</button>
+            </form>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Settings</h2>
+            <span class="pill {{ 'ok' if snmp_configured else 'warn' }}">SNMP {{ "set" if snmp_configured else "unset" }}</span>
+          </div>
+          <div class="panel-body forms">
+            <form class="compact" method="post" action="{{ url_for('save_snmp_settings') }}">
+              <label style="flex:1 1 220px;">SNMP v2c community
+                <input name="community" type="password" placeholder="{{ 'configured' if snmp_configured else 'not configured' }}">
+              </label>
+              <button>Save</button>
+            </form>
+            <div class="actions">
+              <form method="post" action="{{ url_for('rebuild_topology_now') }}"><button class="secondary">Rebuild topology</button></form>
+              <form method="post" action="{{ url_for('toggle_topology_freeze') }}">
+                <input type="hidden" name="freeze" value="{{ '0' if frozen else '1' }}">
+                <button class="{{ 'secondary' if frozen else 'warning' }}">{{ "Resume topology" if frozen else "Pause topology" }}</button>
+              </form>
+              <span class="pill {{ 'warn' if frozen else 'ok' }}">Freeze {{ "on" if frozen else "off" }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="devices" class="panel">
+        <div class="panel-head"><h2>Devices</h2><span class="muted">{{ summary.devices }} total</span></div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>IP</th><th>Hostname</th><th>Type</th><th>Confidence</th><th>Source</th><th>Last Seen</th><th>State</th></tr>
+            {% for d in devices %}
+            <tr>
+              <td class="mono">{{ d.ip }}</td>
+              <td>{{ d.hostname or "" }}</td>
+              <td><span class="pill">{{ d.device_type }}</span></td>
+              <td>{{ d.detection_confidence }}</td>
+              <td>{{ d.detection_source }}</td>
+              <td class="mono">{{ d.last_seen_at or "" }}</td>
+              <td>{% if d.inactive_at %}<span class="pill warn">inactive</span>{% else %}<span class="pill ok">collected</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </section>
+
+      <section id="topology" class="split">
+        <div class="panel">
+          <div class="panel-head"><h2>Topology Nodes</h2><span class="muted">{{ summary.topology_nodes }} nodes</span></div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Node</th><th>Type</th><th>Status</th><th>Confidence</th><th>Updated</th></tr>
+              {% for n in topology_nodes %}
+              <tr><td>{{ n.label }}</td><td>{{ n.node_type }}</td><td><span class="pill {{ 'ok' if n.status == 'collected' else 'warn' }}">{{ n.status }}</span></td><td>{{ n.confidence }}</td><td class="mono">{{ n.updated_at }}</td></tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Topology Edges</h2><span class="muted">{{ summary.topology_edges }} edges</span></div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Source</th><th>Target</th><th>Relation</th><th>Confidence</th><th>Notes</th></tr>
+              {% for e in topology_edges %}
+              <tr><td>{{ e.source_label }}</td><td>{{ e.target_label }}</td><td>{{ e.relation }}</td><td>{{ e.confidence }}</td><td class="truncate">{{ e.notes }}</td></tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="jobs" class="panel">
+        <div class="panel-head"><h2>Jobs</h2></div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Name</th><th>Type</th><th>Target</th><th>Next Run</th><th>Last Success</th><th>Failures</th><th>Last Error</th></tr>
+            {% for j in jobs %}
+            <tr><td>{{ j.name }}</td><td>{{ j.job_type }}</td><td class="mono">{{ j.target }}</td><td class="mono">{{ j.next_run_at or "" }}</td><td class="mono">{{ j.last_success_at or "" }}</td><td>{{ j.consecutive_failures }}</td><td class="truncate">{{ j.last_error }}</td></tr>
+            {% endfor %}
+          </table>
+        </div>
+      </section>
+
+      <section class="split">
+        <div class="panel">
+          <div class="panel-head"><h2>Recent Job Runs</h2></div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Type</th><th>Target</th><th>Status</th><th>Started</th><th>Error</th></tr>
+              {% for r in runs %}
+              <tr><td>{{ r.job_type }}</td><td class="mono">{{ r.target }}</td><td><span class="pill {{ 'ok' if r.status == 'success' else 'bad' }}">{{ r.status }}</span></td><td class="mono">{{ r.started_at }}</td><td class="truncate">{{ r.error }}</td></tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Notifications</h2></div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Channel</th><th>Status</th><th>Sent</th><th>Message</th><th>Error</th></tr>
+              {% for n in notifications %}
+              <tr><td>{{ n.channel }}</td><td><span class="pill {{ 'ok' if n.status == 'sent' else 'warn' }}">{{ n.status }}</span></td><td class="mono">{{ n.sent_at }}</td><td class="truncate">{{ n.message }}</td><td class="truncate">{{ n.error }}</td></tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>
 """
 
 
