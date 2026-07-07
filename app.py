@@ -23,19 +23,28 @@ INDEX = """
 <title>SonarGrid NMS</title>
 <style>
   :root {
-    --bg: #f4f6f8;
+    --bg: #f5f7f9;
+    --surface: #fbfcfd;
     --panel: #ffffff;
-    --panel-soft: #f9fafb;
-    --line: #d9dee6;
-    --line-soft: #e8edf3;
-    --text: #182230;
-    --muted: #667085;
-    --accent: #0b7285;
-    --accent-strong: #075c6b;
-    --ok: #0f8a5f;
-    --warn: #b7791f;
+    --panel-soft: #f7f9fb;
+    --line: #d7dee8;
+    --line-soft: #e9eef4;
+    --text: #151b23;
+    --muted: #66707f;
+    --soft-text: #344054;
+    --accent: #087f8c;
+    --accent-strong: #06626d;
+    --accent-soft: #e6f6f8;
+    --ok: #087443;
+    --ok-soft: #e7f6ee;
+    --warn: #9a6700;
+    --warn-soft: #fff4d6;
     --bad: #b42318;
-    --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+    --bad-soft: #ffebe8;
+    --graphite: #181818;
+    --graphite-2: #242424;
+    --shadow: 0 1px 2px rgba(20, 28, 38, .05), 0 10px 28px rgba(20, 28, 38, .06);
+    --focus: 0 0 0 3px rgba(8, 127, 140, .16);
   }
   * { box-sizing: border-box; }
   body {
@@ -43,57 +52,61 @@ INDEX = """
     min-width: 320px;
     background: var(--bg);
     color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     letter-spacing: 0;
   }
   a { color: var(--accent); text-decoration: none; font-weight: 650; }
   a:hover { color: var(--accent-strong); text-decoration: underline; }
-  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
   .sidebar {
-    background: #101828;
+    background: var(--graphite);
     color: #f9fafb;
-    padding: 20px 16px;
+    padding: 22px 16px;
     position: sticky;
     top: 0;
     height: 100vh;
+    border-right: 1px solid #2f2f2f;
   }
-  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 30px; }
   .mark {
-    width: 34px; height: 34px; border-radius: 8px;
+    width: 36px; height: 36px; border-radius: 8px;
     display: grid; place-items: center;
-    background: #e6f7fb; color: #075c6b; font-weight: 900;
+    background: var(--accent-soft); color: var(--accent-strong); font-weight: 900;
+    border: 1px solid rgba(255,255,255,.18);
   }
   .brand-title { font-size: 18px; font-weight: 800; }
-  .brand-sub { color: #98a2b3; font-size: 12px; margin-top: 1px; }
-  .nav { display: grid; gap: 6px; }
+  .brand-sub { color: #a8b0bb; font-size: 12px; margin-top: 1px; }
+  .nav { display: grid; gap: 5px; }
   .nav a {
-    color: #d0d5dd;
-    padding: 9px 10px;
+    color: #d7dce3;
+    padding: 10px 11px;
     border-radius: 6px;
     font-weight: 650;
+    border: 1px solid transparent;
   }
-  .nav a:hover { background: #1d2939; color: #fff; text-decoration: none; }
+  .nav a:hover { background: var(--graphite-2); color: #fff; text-decoration: none; border-color: #333; }
   .main { min-width: 0; }
   .topbar {
-    height: 64px;
-    background: rgba(255,255,255,.92);
+    min-height: 70px;
+    background: rgba(251, 252, 253, .88);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 0 24px;
+    padding: 12px 26px;
     position: sticky;
     top: 0;
     z-index: 4;
   }
-  h1 { font-size: 20px; line-height: 1.2; margin: 0; }
-  h2 { font-size: 15px; margin: 0; }
+  h1 { font-size: 21px; line-height: 1.2; margin: 0; font-weight: 820; }
+  h2 { font-size: 15px; margin: 0; font-weight: 780; }
   .muted { color: var(--muted); }
-  .content { padding: 24px; display: grid; gap: 20px; }
+  .content { padding: 26px; display: grid; gap: 20px; }
   .stats {
     display: grid;
-    grid-template-columns: repeat(6, minmax(132px, 1fr));
+    grid-template-columns: repeat(6, minmax(136px, 1fr));
     gap: 12px;
   }
   .stat {
@@ -101,11 +114,20 @@ INDEX = """
     border: 1px solid var(--line-soft);
     border-radius: 8px;
     box-shadow: var(--shadow);
-    padding: 14px;
-    min-height: 92px;
+    padding: 15px 15px 13px;
+    min-height: 96px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--accent);
   }
   .stat-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-  .stat-value { font-size: 28px; line-height: 1.1; font-weight: 850; margin-top: 10px; }
+  .stat-value { font-size: 30px; line-height: 1.08; font-weight: 860; margin-top: 12px; letter-spacing: 0; }
   .grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(340px, .8fr); gap: 20px; align-items: start; }
   .panel {
     background: var(--panel);
@@ -114,12 +136,13 @@ INDEX = """
     box-shadow: var(--shadow);
     overflow: hidden;
   }
+  .panel:hover { border-color: #cbd5e1; }
   .panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 13px 16px;
     border-bottom: 1px solid var(--line-soft);
     background: var(--panel-soft);
   }
@@ -131,26 +154,28 @@ INDEX = """
   label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
   input {
     width: 100%;
-    min-height: 36px;
-    border: 1px solid #cfd6df;
+    min-height: 38px;
+    border: 1px solid #cad3df;
     border-radius: 6px;
     padding: 8px 10px;
     color: var(--text);
     background: #fff;
     font: inherit;
   }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
   button, .button {
-    min-height: 36px;
+    min-height: 38px;
     border: 1px solid var(--accent);
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 8px 13px;
     color: #fff;
     background: var(--accent);
-    font-weight: 750;
+    font-weight: 760;
     cursor: pointer;
     white-space: nowrap;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
   }
-  button:hover, .button:hover { background: var(--accent-strong); text-decoration: none; }
+  button:hover, .button:hover { background: var(--accent-strong); text-decoration: none; transform: translateY(-1px); }
   button.secondary, .button.secondary {
     background: #fff;
     color: var(--accent);
@@ -159,6 +184,9 @@ INDEX = """
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; min-width: 760px; }
   th {
+    position: sticky;
+    top: 70px;
+    z-index: 2;
     text-align: left;
     color: var(--muted);
     font-size: 12px;
@@ -170,10 +198,11 @@ INDEX = """
   }
   td {
     border-bottom: 1px solid var(--line-soft);
-    padding: 10px 12px;
+    padding: 11px 12px;
     vertical-align: top;
     white-space: nowrap;
   }
+  tbody tr:hover, tr:hover td { background: #fbfdff; }
   tr:last-child td { border-bottom: 0; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
   .truncate { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -186,11 +215,12 @@ INDEX = """
     font-size: 12px;
     font-weight: 800;
     background: #eef2f6;
-    color: #344054;
+    color: var(--soft-text);
+    border: 1px solid rgba(52,64,84,.08);
   }
-  .pill.ok { background: #e8f7ef; color: var(--ok); }
-  .pill.warn { background: #fff4df; color: var(--warn); }
-  .pill.bad { background: #ffebe9; color: var(--bad); }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 1120px) {
     .stats { grid-template-columns: repeat(3, 1fr); }
@@ -230,6 +260,7 @@ INDEX = """
         <div class="muted">Information collection and inferred topology</div>
       </div>
       <div class="actions">
+        <span class="pill {{ 'warn' if frozen else 'ok' }}">Topology {{ "paused" if frozen else "live" }}</span>
         <a class="button secondary" href="{{ url_for('export_devices') }}">Devices CSV</a>
         <a class="button secondary" href="{{ url_for('export_observations') }}">Observations CSV</a>
       </div>
